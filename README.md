@@ -19,6 +19,9 @@
 * **快取與房間狀態 Cache & Room State:** Redis (專司房間狀態、打賞佇列與權限 Token，不快取影音 / Room state, tip queue & permission tokens only, no media caching)
 * **邊緣運算與路由 Edge Computing & Routing:** Cloudflare (Anycast UDP 流量優化 / Anycast UDP traffic optimization)
 * **Web3 金流與驗證 Web3 Payments & Verification:** Solana/Ethereum 智能合約 Smart Contracts, Phantom 錢包整合 Wallet Integration, Yoti / World ID (零知識年齡驗證 / Zero-knowledge age verification)
+* **資料庫 Database:** PostgreSQL (Supabase + Drizzle ORM), MongoDB (Atlas + Mongoose), Redis
+* **基礎設施即程式碼 IaC:** Terraform, Pulumi, Choreo.dev
+* **容器化 Containerization:** Docker (Go/Rust/Web multi-stage builds), Docker Compose, Nginx reverse proxy
 
 ## 資安與合規防護 Security & Compliance (The Grill 解決方案 Solutions)
 
@@ -44,30 +47,44 @@
 
 ## Repository 結構 Structure (Monorepo)
 
-本專案建議採用 Turborepo 或 Nx 進行 Monorepo 管理，將前後端、智能合約與韌體代碼統一管控。
+本專案採用 Turborepo 進行 Monorepo 管理，將前後端、智能合約與韌體代碼統一管控。
 
-This project uses Turborepo or Nx for monorepo management, unifying frontend, backend, smart contracts, and firmware code.
+This project uses Turborepo for monorepo management, unifying frontend, backend, smart contracts, and firmware code.
 
 ```text
-aurasync-monorepo/
+pulsegrid-aegislink/
 ├── apps/
-│   ├── web-app/               # Next.js 前端 (觀眾端、創作者控制台、諮商室) / Next.js Frontend (Audience, Creator Console, Counseling Room)
-│   ├── sfu-server/            # WebRTC SFU 伺服器 (Go/Pion 或 Rust/Mediasoup) / WebRTC SFU Server
-│   ├── api-gateway/           # gRPC / REST API 網關 (處理業務邏輯) / API Gateway (Business Logic)
-│   └── mqtt-broker/           # MQTT 輕量級 Broker (處理 IoT 心跳與遙測) / MQTT Lightweight Broker (IoT Heartbeat & Telemetry)
+│   ├── web-app/               # Next.js 前端 (觀眾端、創作者控制台、諮商室) / Next.js Frontend
+│   ├── sfu-server/            # WebRTC SFU 伺服器 (Go/Pion) / WebRTC SFU Server
+│   ├── api-gateway/           # gRPC / REST API 網關 / API Gateway
+│   └── mqtt-broker/           # MQTT 輕量級 Broker / MQTT Lightweight Broker
 ├── packages/
-│   ├── ui/                    # 共用 React 元件庫 (Tailwind CSS) / Shared React Component Library
-│   ├── rpc-schema/            # Protobuf 檔案 (定義前後端與硬體通訊協議) / Protobuf Files (Communication Protocol)
-│   ├── webrtc-sdk/            # 封裝 WebRTC 連線與 Data Channel 邏輯 / WebRTC Connection & Data Channel Logic
-│   └── crypto-utils/          # Web3 錢包互動、簽章驗證與 ZK 驗證模組 / Web3 Wallet, Signature & ZK Verification
-├── contracts/                 # 智能合約 (Solidity / Rust for Solana) / Smart Contracts
-│   ├── payment-router/        # 隱私路由發放合約 / Privacy Routing Disbursement Contract
+│   ├── ui/                    # 共用 React 元件庫 / Shared React Component Library
+│   ├── rpc-schema/            # Protobuf 檔案 / Protobuf Files
+│   ├── webrtc-sdk/            # WebRTC 連線邏輯 / WebRTC Connection Logic
+│   └── crypto-utils/          # Web3 加密工具 / Web3 Crypto Utilities
+├── contracts/                 # 智能合約 / Smart Contracts
+│   ├── payment-router/        # 隱私路由發放合約 / Privacy Routing Contract
 │   └── tip-escrow/            # 打賞託管合約 / Tip Escrow Contract
-├── firmware/                  # IoT 設備韌體 (C / Rust) / IoT Device Firmware
-│   ├── core/                  # 硬體看門狗 (WDT) 與 SSR 控制邏輯 / Hardware Watchdog & SSR Control Logic
-│   └── secure-element/        # SE 晶片憑證管理與加密通訊 / SE Chip Certificate Management & Encrypted Communication
-├── docs/                      # 系統架構圖與開發者文檔 / System Architecture & Developer Documentation
-├── docker-compose.yml         # 本地端快速啟動環境 (Redis, Postgres, Local Broker) / Local Dev Environment
+├── firmware/                  # IoT 設備韌體 / IoT Device Firmware
+│   ├── core/                  # 硬體看門狗與 SSR 控制 / Hardware Watchdog & SSR
+│   └── secure-element/        # SE 晶片加密通訊 / SE Chip Encryption
+├── database/                  # 資料庫架構與迁移 / Database Schema & Migrations
+│   ├── postgres/              # PostgreSQL schema, migrations, seeds
+│   ├── mongodb/               # MongoDB schemas (Mongoose)
+│   ├── redis/                 # Redis configuration
+│   └── drizzle/               # Drizzle ORM schema & config
+├── infrastructure/            # 基礎設施即程式碼 / Infrastructure as Code
+│   ├── terraform/             # Terraform modules (Cloudflare, Supabase, MongoDB Atlas)
+│   ├── pulumi/                # Pulumi programs (TypeScript)
+│   ├── choreo/                # Choreo.dev service definitions
+│   └── nginx/                 # Nginx reverse proxy config
+├── config/                    # 服務配置文件 / Service Configurations
+├── docs/                      # 開發者文檔 / Developer Documentation
+├── Dockerfile.go              # Go 服務共用 Dockerfile / Shared Go Dockerfile
+├── Dockerfile.rust            # Rust 韌體 Dockerfile / Rust Firmware Dockerfile
+├── Dockerfile.web             # Next.js Dockerfile / Next.js Dockerfile
+├── docker-compose.yml         # 本地開發環境 / Local Development Environment
 └── README.md
 ```
 
@@ -79,15 +96,78 @@ aurasync-monorepo/
 # 安裝依賴 Install dependencies
 npm install
 
-# 啟動本地開發環境 Start local development
+# 啟動本地開發環境 (含資料庫容器) Start local dev (with DB containers)
+docker-compose up -d
 npm run dev
+
+# 執行資料庫迁移 Run database migrations
+npm run db:migrate
 
 # 執行測試 Run tests
 npm test
 
+# Robot Framework 整合測試 Run integration tests
+robot tests/
+
 # 建構生產版本 Build for production
 npm run build
+
+# Docker 建構 Build Docker images
+docker build -f Dockerfile.go -t pulsegrid-go .
+docker build -f Dockerfile.rust -t pulsegrid-rust .
+docker build -f Dockerfile.web -t pulsegrid-web .
 ```
+
+---
+
+## 資料庫 Database
+
+### PostgreSQL Tables (Drizzle ORM)
+
+| 資料表 Table | 用途 Purpose |
+|-------------|-------------|
+| `users` | 使用者帳號、錢包地址、RBAC 角色 |
+| `rooms` | 直播/諮商房間設定、E2EE 狀態 |
+| `room_participants` | 房間參與者與角色 |
+| `counselors` | 諮商師資料、專長、費率 |
+| `bookings` | 預約紀錄與狀態 |
+| `tips` | 打賞託管交易紀錄 |
+| `withdrawals` | 出金申請與區塊鏈交易 |
+| `audit_logs` | 操作審計日誌 |
+| `age_verifications` | 年齡驗證紀錄 |
+| `devices` | IoT 設備註冊資料 |
+
+### MongoDB Collections (Mongoose)
+
+| 集合 Collection | 用途 Purpose |
+|----------------|-------------|
+| `telemetry_logs` | IoT 設備遙測日誌 (高頻寫入) |
+| `chat_messages` | 房間聊天紀錄 (加密) |
+| `moderation_tags` | 內容審核標籤 |
+
+---
+
+## 基礎設施 Infrastructure
+
+### Terraform Modules
+
+| 模組 Module | 用途 Purpose |
+|------------|-------------|
+| `cloudflare` | DNS、DDoS 防護、Workers |
+| `supabase` | PostgreSQL 資料庫與 Auth |
+| `mongodb-atlas` | MongoDB 叢集 |
+
+### Docker Services
+
+| 服務 Service | 連接埠 Port | 用途 Purpose |
+|-------------|------------|-------------|
+| redis | 6379 | 快取與房間狀態 / Cache & Room State |
+| postgres | 5432 | 關聯式資料庫 / SQL Database |
+| mongodb | 27017 | 非結構化資料 / NoSQL Database |
+| mosquitto | 1883, 9001 | MQTT Broker |
+| nginx | 80, 443 | 反向代理 / Reverse Proxy |
+
+---
 
 ## 授權條款 License
 
