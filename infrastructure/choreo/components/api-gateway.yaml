@@ -1,0 +1,98 @@
+# =============================================================================
+# API Gateway Component
+# =============================================================================
+
+component:
+  name: api-gateway
+  type: service
+  
+source:
+  type: dockerfile
+  dockerfile: Dockerfile.go
+  buildArgs:
+    SERVICE: api-gateway
+  
+endpoints:
+  - name: api
+    port: 8082
+    protocol: HTTP
+    basePath: /api
+    networking:
+      ingress:
+        host: api.aurasync.app
+        path: /
+        tls: true
+      egress:
+        - name: redis
+          host: redis
+          port: 6379
+        - name: postgres
+          host: postgres
+          port: 5432
+        - name: mongodb
+          host: mongodb
+          port: 27017
+
+healthCheck:
+  path: /health
+  port: 8082
+  initialDelay: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+env:
+  - name: PORT
+    value: "8082"
+  - name: REDIS_ADDR
+    secretRef: redis-connection
+    key: REDIS_ADDR
+  - name: DATABASE_URL
+    secretRef: database-connection
+    key: DATABASE_URL
+  - name: JWT_SECRET
+    secretRef: jwt-secret
+    key: JWT_SECRET
+
+resources:
+  cpu: 250m
+  memory: 512Mi
+  storage: 1Gi
+
+scaling:
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPU: 70
+  targetMemory: 80
+  scaleUpStabilization: 60
+  scaleDownStabilization: 300
+
+observability:
+  logs:
+    enabled: true
+    level: info
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+  tracing:
+    enabled: true
+    sampleRate: 0.1
+
+security:
+  networkPolicy:
+    enabled: true
+    ingress:
+      - from:
+          - podSelector:
+              matchLabels:
+                app: nginx
+        ports:
+          - port: 8082
+    egress:
+      - to:
+          - podSelector:
+              matchLabels:
+                app: redis
+        ports:
+          - port: 6379

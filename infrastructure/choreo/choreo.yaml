@@ -1,0 +1,207 @@
+# =============================================================================
+# Choreo.dev Service Definitions
+# =============================================================================
+# Choreo.dev is a cloud-native development platform that provides:
+# - Managed DevOps pipelines
+# - Service mesh and observability
+# - Automatic CI/CD
+# - Secret management
+# - Environment management
+# =============================================================================
+
+# Project Configuration
+project:
+  name: pulsegrid-aegislink
+  description: "AuraSync Platform - Interactive adult entertainment with privacy-first counseling"
+  environment: production
+
+# Component Registry
+components:
+  - name: api-gateway
+    type: service
+    source:
+      type: dockerfile
+      dockerfile: Dockerfile.go
+      buildArgs:
+        SERVICE: api-gateway
+    endpoints:
+      - name: api
+        port: 8082
+        protocol: HTTP
+        basePath: /api
+    healthCheck:
+      path: /health
+      port: 8082
+    env:
+      - name: PORT
+        value: "8082"
+      - name: REDIS_ADDR
+        secretRef: redis-connection
+      - name: JWT_SECRET
+        secretRef: jwt-secret
+    scaling:
+      minReplicas: 1
+      maxReplicas: 3
+      targetCPU: 70
+
+  - name: sfu-server
+    type: service
+    source:
+      type: dockerfile
+      dockerfile: Dockerfile.go
+      buildArgs:
+        SERVICE: sfu-server
+    endpoints:
+      - name: webrtc
+        port: 8080
+        protocol: HTTP
+    healthCheck:
+      path: /health
+      port: 8080
+    env:
+      - name: PORT
+        value: "8080"
+      - name: REDIS_ADDR
+        secretRef: redis-connection
+    scaling:
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPU: 60
+
+  - name: mqtt-broker
+    type: service
+    source:
+      type: dockerfile
+      dockerfile: Dockerfile.go
+      buildArgs:
+        SERVICE: mqtt-broker
+    endpoints:
+      - name: mqtt-api
+        port: 8081
+        protocol: HTTP
+    healthCheck:
+      path: /health
+      port: 8081
+    env:
+      - name: PORT
+        value: "8081"
+      - name: MQTT_BROKER
+        value: "tcp://mosquitto:1883"
+      - name: REDIS_ADDR
+        secretRef: redis-connection
+    scaling:
+      minReplicas: 1
+      maxReplicas: 2
+      targetCPU: 70
+
+  - name: web-app
+    type: service
+    source:
+      type: dockerfile
+      dockerfile: Dockerfile.web
+    endpoints:
+      - name: web
+        port: 3000
+        protocol: HTTP
+        basePath: /
+    healthCheck:
+      path: /
+      port: 3000
+    env:
+      - name: PORT
+        value: "3000"
+      - name: NEXT_PUBLIC_SOLANA_RPC_URL
+        secretRef: solana-rpc-url
+    scaling:
+      minReplicas: 1
+      maxReplicas: 3
+      targetCPU: 70
+
+# Secret Management
+secrets:
+  - name: redis-connection
+    type: generic
+    keys:
+      - REDIS_ADDR
+      - REDIS_PASSWORD
+
+  - name: jwt-secret
+    type: generic
+    keys:
+      - JWT_SECRET
+
+  - name: database-connection
+    type: generic
+    keys:
+      - DATABASE_URL
+      - MONGODB_URI
+
+  - name: web3-secrets
+    type: generic
+    keys:
+      - SOLANA_RPC_URL
+      - ETHEREUM_RPC_URL
+
+  - name: age-verification
+    type: generic
+    keys:
+      - YOTI_CLIENT_SDK_ID
+      - WORLDCOIN_APP_ID
+
+# CI/CD Pipeline
+pipeline:
+  trigger:
+    branches:
+      - main
+      - develop
+    events:
+      - push
+      - pull_request
+  
+  stages:
+    - name: build
+      steps:
+        - name: install
+          command: npm install
+        - name: lint
+          command: npm run lint
+        - name: typecheck
+          command: npm run typecheck
+    
+    - name: test
+      steps:
+        - name: unit-tests
+          command: npm test
+        - name: integration-tests
+          command: robot tests/
+    
+    - name: deploy
+      steps:
+        - name: build-images
+          command: docker-compose build
+        - name: push-images
+          command: docker-compose push
+        - name: deploy
+          command: choreo deploy
+
+# Monitoring
+monitoring:
+  enabled: true
+  alerts:
+    - name: high-cpu
+      metric: cpu_usage_percent
+      threshold: 80
+      duration: 5m
+      severity: warning
+    
+    - name: high-memory
+      metric: memory_usage_percent
+      threshold: 85
+      duration: 5m
+      severity: warning
+    
+    - name: error-rate
+      metric: http_requests_error_rate
+      threshold: 5
+      duration: 10m
+      severity: critical

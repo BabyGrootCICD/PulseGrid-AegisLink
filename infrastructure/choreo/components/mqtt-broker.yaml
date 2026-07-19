@@ -1,0 +1,100 @@
+# =============================================================================
+# MQTT Broker Component
+# =============================================================================
+
+component:
+  name: mqtt-broker
+  type: service
+  
+source:
+  type: dockerfile
+  dockerfile: Dockerfile.go
+  buildArgs:
+    SERVICE: mqtt-broker
+  
+endpoints:
+  - name: mqtt-api
+    port: 8081
+    protocol: HTTP
+    basePath: /devices
+    networking:
+      ingress:
+        host: mqtt.aurasync.app
+        path: /
+        tls: true
+      egress:
+        - name: mosquitto
+          host: mosquitto
+          port: 1883
+        - name: redis
+          host: redis
+          port: 6379
+
+healthCheck:
+  path: /health
+  port: 8081
+  initialDelay: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+env:
+  - name: PORT
+    value: "8081"
+  - name: MQTT_BROKER
+    value: "tcp://mosquitto:1883"
+  - name: REDIS_ADDR
+    secretRef: redis-connection
+    key: REDIS_ADDR
+
+resources:
+  cpu: 250m
+  memory: 512Mi
+  storage: 1Gi
+
+scaling:
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPU: 70
+  targetMemory: 80
+  scaleUpStabilization: 60
+  scaleDownStabilization: 300
+
+observability:
+  logs:
+    enabled: true
+    level: info
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+  tracing:
+    enabled: true
+    sampleRate: 0.1
+
+# Mosquitto sidecar
+sidecars:
+  - name: mosquitto
+    image: eclipse-mosquitto:2
+    ports:
+      - containerPort: 1883
+        name: mqtt
+        protocol: TCP
+      - containerPort: 9001
+        name: mqtt-ws
+        protocol: TCP
+    volumeMounts:
+      - name: mosquitto-config
+        mountPath: /mosquitto/config
+      - name: mosquitto-data
+        mountPath: /mosquitto/data
+    resources:
+      cpu: 100m
+      memory: 128Mi
+
+volumes:
+  - name: mosquitto-config
+    configMap:
+      name: mosquitto-config
+  - name: mosquitto-data
+    emptyDir: {}

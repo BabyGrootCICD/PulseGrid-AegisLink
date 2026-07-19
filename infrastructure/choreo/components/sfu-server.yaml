@@ -1,0 +1,88 @@
+# =============================================================================
+# SFU Server Component
+# =============================================================================
+
+component:
+  name: sfu-server
+  type: service
+  
+source:
+  type: dockerfile
+  dockerfile: Dockerfile.go
+  buildArgs:
+    SERVICE: sfu-server
+  
+endpoints:
+  - name: webrtc
+    port: 8080
+    protocol: HTTP
+    networking:
+      ingress:
+        host: ws.aurasync.app
+        path: /
+        tls: true
+        # WebSocket support
+        annotations:
+          nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+          nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+          nginx.ingress.kubernetes.io/websocket-services: "sfu-server"
+      egress:
+        - name: redis
+          host: redis
+          port: 6379
+        - name: stun
+          host: stun.l.google.com
+          port: 19302
+          protocol: UDP
+
+healthCheck:
+  path: /health
+  port: 8080
+  initialDelay: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+env:
+  - name: PORT
+    value: "8080"
+  - name: REDIS_ADDR
+    secretRef: redis-connection
+    key: REDIS_ADDR
+  - name: STUN_SERVER
+    value: "stun:stun.l.google.com:19302"
+  - name: TURN_SERVER
+    value: "turn:turn.aurasync.app:3478"
+
+resources:
+  cpu: 500m
+  memory: 1Gi
+  storage: 2Gi
+
+scaling:
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPU: 60
+  targetMemory: 70
+  scaleUpStabilization: 60
+  scaleDownStabilization: 300
+
+observability:
+  logs:
+    enabled: true
+    level: info
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+  tracing:
+    enabled: true
+    sampleRate: 0.1
+
+# Special config for WebRTC
+annotations:
+  # Enable UDP for WebRTC
+  service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+  # Preserve client IP for TURN
+  service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
