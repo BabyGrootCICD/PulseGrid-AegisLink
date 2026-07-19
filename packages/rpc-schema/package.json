@@ -1,0 +1,12 @@
+{
+  "name": "@pulsegrid/rpc-schema",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "protoc --go_out=. --go-grpc_out=. proto/pulsegrid.proto",
+    "lint": "buf lint"
+  },
+  "devDependencies": {
+    "buf": "^1.30.0"
+  }
+}

@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package pulsegrid;
+
+option go_package = "github.com/pulsegrid-aegislink/packages/rpc-schema/proto";
+
+message Room {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  repeated string participants = 4;
+  int64 created_at = 5;
+}
+
+message CreateRoomRequest {
+  string name = 1;
+  string type = 2;
+}
+
+message CreateRoomResponse {
+  Room room = 1;
+}
+
+message JoinRoomRequest {
+  string room_id = 1;
+  string user_id = 2;
+}
+
+message JoinRoomResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message IoTCommand {
+  string device_id = 1;
+  string command = 2;
+  bytes payload = 3;
+  int64 timestamp = 4;
+}
+
+message IoTResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+service RoomService {
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+}
+
+service IoTService {
+  rpc SendCommand(IoTCommand) returns (IoTResponse);
+}

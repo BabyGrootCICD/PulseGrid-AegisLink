@@ -1,0 +1,19 @@
+[package]
+name = "firmware-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embedded-hal = "0.2"
+nb = "1"
+cortex-m = "0.7"
+cortex-m-rt = "0.7"
+panic-halt = "0.2"
+mqtt = { version = "0.1", path = "../mqtt" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
