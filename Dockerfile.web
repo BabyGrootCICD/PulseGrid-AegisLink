@@ -1,0 +1,58 @@
+# =============================================================================
+# Next.js Web App Dockerfile (multi-stage with standalone output)
+# Usage: docker build -f Dockerfile.web -t pulsegrid-web .
+# =============================================================================
+
+# Dependencies stage
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY apps/web-app/package.json package-lock.json* ./
+COPY packages/*/package.json ./packages/
+RUN npm ci || npm install
+
+# Build stage
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/*/node_modules ./packages/*/node_modules
+
+COPY apps/web-app/ ./apps/web-app/
+COPY packages/ ./packages/
+COPY turbo.json tsconfig.json package.json ./
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+RUN npm run build --workspace=apps/web-app
+
+# Production stage
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy standalone output
+COPY --from=builder /app/apps/web-app/.next/standalone ./
+COPY --from=builder /app/apps/web-app/.next/static ./apps/web-app/.next/static
+COPY --from=builder /app/apps/web-app/public ./apps/web-app/public
+
+# Create dirs for Next.js
+RUN mkdir -p /app/apps/web-app/.next/server
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+CMD ["node", "apps/web-app/server.js"]
