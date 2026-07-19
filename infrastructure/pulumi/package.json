@@ -1,0 +1,21 @@
+{
+  "name": "pulsegrid-aegislink-infra",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "preview": "pulumi preview",
+    "up": "pulumi up",
+    "destroy": "pulumi destroy",
+    "stack": "pulumi stack"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^6.0.0",
+    "@pulumi/cloudflare": "^5.0.0",
+    "@pulumi/docker": "^4.0.0",
+    "@pulumi/pulumi": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}

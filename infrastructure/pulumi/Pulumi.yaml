@@ -1,0 +1,8 @@
+name: pulsegrid-aegislink
+runtime: nodejs
+description: PulseGrid-AegisLink (AuraSync) Infrastructure as Code
+config:
+  aurasync:environment:
+    type: string
+  aurasync:region:
+    type: string

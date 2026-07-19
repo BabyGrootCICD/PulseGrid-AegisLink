@@ -1,0 +1,3 @@
+config:
+  aurasync:environment: prod
+  aurasync:region: us-east-1
