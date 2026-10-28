@@ -3,7 +3,7 @@ module github.com/pulsegrid-aegislink/mqtt-broker
 go 1.26.0
 
 require (
-	github.com/eclipse/paho.mqtt.golang v1.4.3
+	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/redis/go-redis/v9 v9.5.1
 	go.uber.org/zap v1.27.0
